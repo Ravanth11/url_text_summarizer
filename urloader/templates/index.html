@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stylish URL Input</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .input-wrapper {
+            position: absolute;
+            z-index: 1;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 1s ease-out;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 10px;
+            width: 300px;
+            border: none;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+            background-color: #444;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+     <div class="container">
+        <div class="input-wrapper">
+            <h1>Enter Your URL</h1>
+            <input type="text" id="urlInput" placeholder="https://example.com">
+            <button onclick="handleSubmit()">Go</button>
+        </div>
+        <div id="result" style="color: #fff; margin-top: 20px;"></div>
+        <div id="three-js-container"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Three.js setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('three-js-container').appendChild(renderer.domElement);
+
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 5, 5).normalize();
+        scene.add(directionalLight);
+
+        // Create a torus knot geometry
+        const geometry = new THREE.TorusKnotGeometry(1, 0.4, 100, 16);
+        const material = new THREE.MeshStandardMaterial({ color: 0x007bff, metalness: 0.7, roughness: 0.3 });
+        const torusKnot = new THREE.Mesh(geometry, material);
+        scene.add(torusKnot);
+
+        // Create particle system
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 1000;
+        const positions = new Float32Array(particlesCount * 3);
+
+        for (let i = 0; i < particlesCount * 3; i++) {
+            positions[i] = Math.random() * 20 - 10;
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particlesMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.2 });
+        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particles);
+
+        camera.position.z = 5;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            torusKnot.rotation.x += 0.01;
+            torusKnot.rotation.y += 0.01;
+            particles.rotation.y += 0.01; // Rotate particles
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+
+    async function handleSubmit() {
+        const url = document.getElementById('urlInput').value;
+        if (url) {
+            try {
+                const response = await fetch('/fetch-url/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')  // Include CSRF token
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                if (response.ok) {
+                    // Display the response content
+                    const result = await response.json();
+                    document.getElementById('result').innerText = result.summary;
+                } else {
+                    alert('Failed to fetch content.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        } else {
+            alert('Please enter a URL.');
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+</body>
+</html>
